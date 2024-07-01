@@ -1,8 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({
-  name: 'user',
-})
+@Entity({ name: 'user' })
+@Index(['login', 'phone'])
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid', {
     comment: 'User ID',
@@ -17,6 +16,7 @@ export class UserEntity {
   })
   phone: string;
 
+  @Index()
   @Column('varchar', {
     comment: 'User login',
     nullable: false,
