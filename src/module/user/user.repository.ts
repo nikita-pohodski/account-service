@@ -2,7 +2,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
 import { DeepPartial, Repository, SelectQueryBuilder } from 'typeorm';
 import { Injectable } from '@nestjs/common';
-import { CheckExistUserParams, SearchUserParams } from './user.types';
+import {
+  ChangeBalanceParams,
+  CheckExistUserParams,
+  SearchUserParams,
+} from './user.types';
 
 @Injectable()
 export class UserRepository {
@@ -21,6 +25,10 @@ export class UserRepository {
     return this.userRepository.findOneBy({ userId });
   }
 
+  async findByLogin(login: string): Promise<UserEntity | undefined> {
+    return this.userRepository.findOneBy({ login, isDeleted: false });
+  }
+
   async findAndCount(
     params: SearchUserParams,
   ): Promise<{ items: UserEntity[]; total: number }> {
@@ -33,7 +41,7 @@ export class UserRepository {
   }
 
   async deleteUser(id: string): Promise<void> {
-    await this.userRepository.delete({ userId: id });
+    await this.userRepository.update({ userId: id }, { isDeleted: true });
   }
 
   async checkExistUser(
@@ -45,20 +53,24 @@ export class UserRepository {
     const result = await query
       .where(`${alias}.login = :login`, { login: params.login })
       .orWhere(`${alias}.phone = :phone`, { phone: params.phone })
+      .andWhere(`${alias}.isDeleted = :isDeleted`, { isDeleted: false })
       .getOne();
 
     return !!result;
   }
 
-  async findByLogin(login: string): Promise<UserEntity | undefined> {
-    return this.userRepository.findOneBy({ login });
+  async changeBalance(params: ChangeBalanceParams) {
+    const { userId, balance } = params;
+    await this.userRepository.update({ userId }, { balance });
   }
 
-  queryBuilder(
+  private queryBuilder(
     params: SearchUserParams = {},
     alias = 'user',
   ): SelectQueryBuilder<UserEntity> {
     const query = this.userRepository.createQueryBuilder(alias);
+
+    query.andWhere(`${alias}.isDeleted = :isDeleted`, { isDeleted: false });
 
     if (params?.userIds?.length) {
       query.andWhere(`${alias}.userId in (:...userIds)`, {
@@ -79,13 +91,8 @@ export class UserRepository {
     }
 
     //Paginate
-    if (params.take) {
-      query.take(params.take);
-    }
-
-    if (params.skip) {
-      query.skip(params.skip);
-    }
+    if (params.take) query.take(params.take);
+    if (params.skip) query.skip(params.skip);
 
     return query;
   }

@@ -38,4 +38,14 @@ export class UserEntity {
 
   @Column('varchar', { comment: 'Password salt' })
   passwordSalt: string;
+
+  @Column('varchar', { comment: 'Balance', nullable: false, default: '0' })
+  balance: string;
+
+  @Column('varchar', {
+    comment: 'Account was deleted',
+    nullable: true,
+    default: false,
+  })
+  isDeleted: boolean;
 }

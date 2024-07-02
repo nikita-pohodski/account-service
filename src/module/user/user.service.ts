@@ -13,6 +13,8 @@ import { UserDto } from './dto/user.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { REDIS_TOKEN } from '../../config/redis/redis.constant';
 import { Redis } from 'ioredis';
+import { ChangeBalanceDto } from './dto/change-balance.dto';
+import { TransactionType } from './user.types';
 
 @Injectable()
 export class UserService {
@@ -41,6 +43,28 @@ export class UserService {
     });
   }
 
+  async changeBalance(params: ChangeBalanceDto): Promise<void> {
+    const { userId, amount, transactionType } = params;
+    const { balance } = await this.userRepository.findById(userId);
+    let newBalance: number;
+
+    if (transactionType == TransactionType.DEPOSIT) {
+      newBalance = +balance + +amount;
+    }
+    if (transactionType == TransactionType.WITHDRAWAL) {
+      newBalance = +balance - +amount;
+    }
+
+    if (newBalance < 0) {
+      throw new ConflictException('Insufficient funds');
+    }
+
+    await this.userRepository.changeBalance({
+      userId,
+      balance: newBalance.toString(),
+    });
+  }
+
   async findAll(getUserFilterDto: GetUsersFilterDto): Promise<{
     items: UserDto[];
     total: number;
@@ -49,8 +73,10 @@ export class UserService {
       getUserFilterDto,
     );
 
-    const dtos = users.map((user) => new UserDto(user));
-    return { items: dtos, total };
+    return {
+      items: users.map((user) => new UserDto(user)),
+      total,
+    };
   }
 
   async findOne(id: string): Promise<UserDto> {
