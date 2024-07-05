@@ -13,14 +13,21 @@ import { UserDto } from './dto/user.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { REDIS_TOKEN } from '../../config/redis/redis.constant';
 import { Redis } from 'ioredis';
-import { ChangeBalanceDto } from './dto/change-balance.dto';
-import { TransactionType } from './user.types';
+import {
+  BalanceChangedStatus,
+  EventBalanceChangedData,
+  EventNameEnum,
+  EventTransactionSavedData,
+  TransactionType,
+} from './user.types';
+import { KafkaService } from '../../config/kafka/kafka.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @Inject(REDIS_TOKEN) private readonly redis: Redis,
     private readonly userRepository: UserRepository,
+    private readonly kafkaService: KafkaService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -43,26 +50,48 @@ export class UserService {
     });
   }
 
-  async changeBalance(params: ChangeBalanceDto): Promise<void> {
-    const { userId, amount, transactionType } = params;
-    const { balance } = await this.userRepository.findById(userId);
-    let newBalance: number;
+  async changeBalance(params: EventTransactionSavedData): Promise<void> {
+    const { userId, amount, transactionType, transactionId } = params;
+    try {
+      const { balance } = await this.userRepository.findById(userId);
+      let newBalance: number;
 
-    if (transactionType == TransactionType.DEPOSIT) {
-      newBalance = +balance + +amount;
-    }
-    if (transactionType == TransactionType.WITHDRAWAL) {
-      newBalance = +balance - +amount;
-    }
+      if (transactionType == TransactionType.DEPOSIT) {
+        newBalance = +balance + +amount;
+      }
 
-    if (newBalance < 0) {
-      throw new ConflictException('Insufficient funds');
-    }
+      if (transactionType == TransactionType.WITHDRAWAL) {
+        newBalance = +balance - +amount;
+      }
 
-    await this.userRepository.changeBalance({
-      userId,
-      balance: newBalance.toString(),
-    });
+      if (newBalance < 0) {
+        throw new ConflictException('Insufficient funds');
+      }
+
+      await this.userRepository.changeBalance({
+        userId,
+        balance: newBalance.toString(),
+      });
+
+      const data: EventBalanceChangedData = {
+        transactionId,
+        status: BalanceChangedStatus.COMPLETED,
+      };
+
+      await this.kafkaService.produce({
+        eventName: EventNameEnum.BalanceChanged,
+        data,
+      });
+    } catch (error: unknown) {
+      const data: EventBalanceChangedData = {
+        transactionId,
+        status: BalanceChangedStatus.FAILED,
+      };
+      await this.kafkaService.produce({
+        eventName: EventNameEnum.BalanceChanged,
+        data,
+      });
+    }
   }
 
   async findAll(getUserFilterDto: GetUsersFilterDto): Promise<{

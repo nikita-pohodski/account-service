@@ -24,7 +24,7 @@ export class KafkaService {
     return firstValueFrom(req);
   }
 
-  async produce(event: KafkaEvent<unknown>): Promise<void> {
+  async produce<Data>(event: KafkaEvent<Data>): Promise<void> {
     const request = this.kafkaClient.emit(event.eventName, event.data);
     await lastValueFrom(request);
   }
