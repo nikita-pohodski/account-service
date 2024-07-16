@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
 import { DatabaseModule } from '../database/database.module';
 import { KafkaModule } from '../../config/kafka/kafka.module';
+import { RedisModule } from '../../config/redis/redis.module';
 
 @Module({
   controllers: [UserController],
@@ -14,6 +15,7 @@ import { KafkaModule } from '../../config/kafka/kafka.module';
     TypeOrmModule.forFeature([UserEntity]),
     DatabaseModule,
     KafkaModule,
+    RedisModule,
   ],
 })
 export class UserModule {}

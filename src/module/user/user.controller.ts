@@ -14,7 +14,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { GetUsersFilterDto } from './dto/get-users-filter.dto';
 import { UserDto } from './dto/user.dto';
 import { SignInDto } from './dto/sign-in.dto';
-import { ChangeBalanceDto } from './dto/change-balance.dto';
 
 @Controller('user')
 export class UserController {
@@ -23,11 +22,6 @@ export class UserController {
   @Post()
   create(@Body() createUserDto: CreateUserDto): Promise<void> {
     return this.userService.create(createUserDto);
-  }
-
-  @Post('/balance')
-  balance(@Body() changeBalanceDto: ChangeBalanceDto): Promise<void> {
-    return this.userService.changeBalance(changeBalanceDto);
   }
 
   @Get()
